@@ -65,6 +65,9 @@ ENV/
 .venv/
 env.bak/
 venv.bak/
+.claude/
+.github/
+
 
 # ============================================
 # Node.js and Frontend Build
