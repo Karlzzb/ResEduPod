@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from deeptutor.capabilities.explore_context import ExploreContextCapability
-from deeptutor.capabilities.mastery import MasteryLoopCapability
 from deeptutor.capabilities.obsidian import ObsidianCapability
 from deeptutor.capabilities.protocol import LoopCapability
 from deeptutor.capabilities.solve import SolveLoopCapability
@@ -11,7 +10,6 @@ from deeptutor.capabilities.subagent import SubagentCapability
 from deeptutor.core.context import UnifiedContext
 
 LOOP_CAPABILITIES: tuple[LoopCapability, ...] = (
-    MasteryLoopCapability(),
     SolveLoopCapability(),
     ObsidianCapability(),
     SubagentCapability(),
@@ -29,8 +27,8 @@ def any_exclusive_capability_active(context: UnifiedContext) -> bool:
 
     Drives the pipeline's exclusive-tools branch and the suppression of rag
     scaffolding (KB seed / kb note) — the turn runs only on the capability's
-    own tools. ``getattr`` default keeps plain capabilities (solve / mastery)
-    out of this path.
+    own tools. ``getattr`` default keeps plain capabilities (solve) out of
+    this path.
     """
     return any(getattr(cap, "exclusive_tools", False) for cap in active_loop_capabilities(context))
 

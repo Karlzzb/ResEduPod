@@ -64,10 +64,15 @@ dependencies = [
     "json-repair>=0.57.0,<1.0.0",
 ]
 
-[project.scripts]
-deeptutor = "deeptutor_cli.main:main"
-
 [project.optional-dependencies]
+# The self-contained ``agentkit`` package (LangGraph agent substrate, ADR-0009).
+# Its leaves import nothing from ``deeptutor.*``; LangGraph (which pulls
+# ``langchain-core`` + ``langgraph-checkpoint``) is the only runtime dependency
+# beyond the core ``pydantic`` already required above.
+agentkit = [
+    "langgraph>=1.2,<2",
+]
+
 # Compatibility extra for source installs and older docs. These packages are
 # already included in the public `deeptutor` wheel; the local CLI-only project
 # under `packaging/deeptutor-cli` uses the same list without Web assets/server deps.
@@ -236,7 +241,7 @@ version = {attr = "deeptutor.__version__.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["deeptutor*", "deeptutor_cli*"]
+include = ["deeptutor*", "agentkit*"]
 
 [tool.setuptools.package-data]
 # Runtime data shipped inside the deeptutor package: prompt YAMLs (loaded by

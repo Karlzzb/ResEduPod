@@ -7,5 +7,4 @@ BUILTIN_CAPABILITY_CLASSES: dict[str, str] = {
     "deep_research": "deeptutor.agents.research.capability:DeepResearchCapability",
     "math_animator": "deeptutor.agents.math_animator.capability:MathAnimatorCapability",
     "visualize": "deeptutor.agents.visualize.capability:VisualizeCapability",
-    "mastery_path": "deeptutor.capabilities.mastery.capability:MasteryPathCapability",
 }

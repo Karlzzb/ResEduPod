@@ -7,19 +7,12 @@ import json
 import logging
 from typing import Any
 
-from deeptutor.capabilities.mastery import MASTERY_TOOL_TYPES
 from deeptutor.capabilities.obsidian import OBSIDIAN_TOOL_TYPES
 from deeptutor.capabilities.solve import SOLVE_TOOL_TYPES
 from deeptutor.capabilities.subagent import SUBAGENT_TOOL_TYPES
 from deeptutor.core.tool_protocol import BaseTool, ToolDefinition, ToolParameter, ToolResult
 from deeptutor.tools.exec_tool import ExecTool
 from deeptutor.tools.media_gen_tool import ImagegenTool, VideogenTool
-from deeptutor.tools.partner_memory import (
-    PARTNER_BUILTIN_TOOL_NAMES,
-    PartnerMemorizeTool,
-    PartnerReadTool,
-    PartnerSearchTool,
-)
 from deeptutor.tools.prompting import load_prompt_hints
 
 logger = logging.getLogger(__name__)
@@ -1465,25 +1458,16 @@ BUILTIN_TOOL_TYPES: tuple[type[BaseTool], ...] = (
     # grant-gated; the chat pipeline only mounts them when a model is configured.
     ImagegenTool,
     VideogenTool,
-    # Mastery Path + Solve + Obsidian tools — globally registered so schemas/API
-    # stay stable; the chat loop capabilities decide when to auto-mount them for
-    # a turn. Obsidian is a knowledge capability: when its vault is selected it
-    # runs the turn exclusively on these tools.
-    *MASTERY_TOOL_TYPES,
+    # Solve + Obsidian tools — globally registered so schemas/API stay stable;
+    # the chat loop capabilities decide when to auto-mount them for a turn.
+    # Obsidian is a knowledge capability: when its vault is selected it runs the
+    # turn exclusively on these tools.
     *SOLVE_TOOL_TYPES,
     *OBSIDIAN_TOOL_TYPES,
     # Subagent consult tool — globally registered; the subagent knowledge
     # capability runs the turn exclusively on it when a connected agent is the
     # selected KB.
     *SUBAGENT_TOOL_TYPES,
-    # Partner-only memory + history tools. Globally registered so schemas/API
-    # stay stable, but never mounted in product chat: the partner runtime
-    # force-mounts them (and suppresses chat's read_memory/write_memory) on
-    # every partner turn. Deliberately absent from CONFIGURABLE_BUILTIN_TOOL_NAMES
-    # — they are mandatory, not owner-configurable.
-    PartnerReadTool,
-    PartnerMemorizeTool,
-    PartnerSearchTool,
 )
 
 # No tools are parked right now. When a tool's implementation is being
@@ -1554,7 +1538,6 @@ __all__ = [
     "COMING_SOON_TOOL_NAMES",
     "COMING_SOON_TOOL_TYPES",
     "CONFIGURABLE_BUILTIN_TOOL_NAMES",
-    "PARTNER_BUILTIN_TOOL_NAMES",
     "TOOL_ALIASES",
     "USER_TOGGLEABLE_TOOL_NAMES",
     "AskUserTool",
@@ -1567,9 +1550,6 @@ __all__ = [
     "VideogenTool",
     "ListNotebookTool",
     "PaperSearchToolWrapper",
-    "PartnerMemorizeTool",
-    "PartnerReadTool",
-    "PartnerSearchTool",
     "RAGTool",
     "LoadToolsTool",
     "ReadMemoryTool",

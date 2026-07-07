@@ -3,9 +3,8 @@
 The chat turn runtime writes the bytes of every uploaded attachment here
 *before* the document extractor runs. Once persisted, the URL is recorded on
 the message and the in-memory base64 is dropped (extractor still clears it
-for office docs to save DB space). The frontend later fetches the original
-file via the :mod:`deeptutor.api.routers.attachments` endpoint to render a
-preview.
+for office docs to save DB space). The persisted file is later served back to
+a client under the ``/api/attachments`` URL prefix to render a preview.
 
 Design goals
 ------------
@@ -32,18 +31,26 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+import re
 from typing import Protocol, runtime_checkable
 from urllib.parse import quote
 
-from deeptutor.partners.helpers import safe_filename
 from deeptutor.services.config import load_system_settings
 from deeptutor.services.path_service import get_path_service
 
 logger = logging.getLogger(__name__)
 
 
+_UNSAFE_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+
+def safe_filename(name: str) -> str:
+    """Replace filesystem-unsafe path characters with underscores."""
+    return _UNSAFE_FILENAME_CHARS.sub("_", name).strip()
+
+
 _DEFAULT_SUBPATH = ("workspace", "chat", "attachments")
-# Public route prefix served by deeptutor.api.routers.attachments
+# Public route prefix under which persisted attachments are served.
 _PUBLIC_URL_PREFIX = "/api/attachments"
 
 

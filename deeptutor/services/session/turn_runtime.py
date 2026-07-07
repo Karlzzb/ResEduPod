@@ -1200,7 +1200,6 @@ class TurnRuntimeManager:
 
         try:
             from deeptutor.agents.notebook import NotebookAnalysisAgent
-            from deeptutor.book.context import build_book_context
             from deeptutor.core.context import Attachment, UnifiedContext
             from deeptutor.runtime.orchestrator import ChatOrchestrator
             from deeptutor.services.memory import get_memory_store
@@ -1243,13 +1242,13 @@ class TurnRuntimeManager:
             notebook_references = payload.get("notebook_references", []) or []
             history_references = payload.get("history_references", []) or []
             question_notebook_references = payload.get("question_notebook_references", []) or []
-            book_context_result = build_book_context(payload.get("book_references", []) or [])
-            book_references = book_context_result.references
+            # The book layer was removed with the product tier; no book context.
+            book_references: list[Any] = []
             memory_references = _extract_memory_references(payload)
             notebook_context = ""
             history_context = ""
             question_bank_context = ""
-            book_context = book_context_result.text
+            book_context = ""
 
             import base64 as _b64
             import uuid as _uuid
@@ -1636,7 +1635,7 @@ class TurnRuntimeManager:
                     "question_notebook_references": question_notebook_references,
                     "book_references": book_references,
                     "book_context": book_context,
-                    "book_context_warnings": book_context_result.warnings,
+                    "book_context_warnings": [],
                     "memory_references": memory_references,
                     "question_bank_context": question_bank_context,
                     "memory_context": memory_context,
