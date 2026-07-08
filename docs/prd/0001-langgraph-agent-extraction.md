@@ -2,6 +2,7 @@
 
 > 本 PRD 由一次 `/grilling` + `/domain-modeling` 会话综合而成,可在新会话中独立用于任务划分与代码实现。
 > 术语一律遵循 [`CONTEXT.md`](../../CONTEXT.md);所有架构决定的权威来源是 [`docs/adr/0001`–`0013`](../adr/),本 PRD 不覆盖它们,只把它们组织成可执行的产品需求。
+> 文末[「交付切分:Issue 划分」](#交付切分issue-划分)为已定稿的任务划分(原 `0001-issues-breakdown.md`,现并入本文件)。该切分方案在定稿时**推翻了黄金样例**(US 43 / ADR-0013):验收一律改由 `FakeDeps` 驱动的行为测试承担——正文中凡涉及「黄金样例」处均以此为准。
 
 ## Problem Statement
 
@@ -16,7 +17,7 @@
 每个 Agent 通过注入的 [AgentDeps](../../CONTEXT.md) 获得依赖、自带默认 prompt、内部只用 LangGraph 原生流式,因而可以脱离 DeepTutor 被直接 `graph.invoke()` 调用。
 新库定位为**有状态的智能体服务**:短期线程态用 Checkpointer,长期记忆用 `BaseStore`,默认零依赖后端(InMemory/SQLite),生产可换 Postgres(pgvector)。
 所有非智能体的产品/交付层(前端、IM 渠道、多用户、学习引擎、产品 API/CLI)永久删除。
-重建按「难度递增、地基先行」的顺序进行,并在删旧码前录制黄金样例作为唯一的行为回归参照系。
+重建按「难度递增、地基先行」的顺序进行,行为回归以 `FakeDeps` 驱动的行为验收(事件序列 + 最终 `State`)为参照系。
 
 ## User Stories
 
@@ -88,10 +89,10 @@
 
 ### 验证与落地
 
-43. 作为维护者,我想要在删旧码之前对三套 Orchestration 各录一组黄金样例,以便硬分叉后仍有客观的行为回归参照系。
+43. ~~作为维护者,我想要在删旧码之前对三套 Orchestration 各录一组黄金样例,以便硬分叉后仍有客观的行为回归参照系。~~ **(已推翻,见文末「交付切分」§关于黄金样例:改由 `FakeDeps` 行为验收替代。)**
 44. 作为维护者,我想要重建从 `math_animator` 开始,以便用最低编排复杂度一次性验证整套地基(契约/注入/State/流式/checkpointer/循环环)。
 45. 作为维护者,我想要按 `math_animator → ReActOrchestration 模板 → deep_research` 的顺序推进,以便难度递增、风险后置。
-46. 作为维护者,我想要每套重建后都对齐其黄金样例,以便证明行为未回归后再进入下一套。
+46. 作为维护者,我想要每套重建后都通过其 `FakeDeps` 行为验收,以便证明行为未回归后再进入下一套。_(原表述为「对齐黄金样例」,已随黄金样例砍去,见文末「交付切分」。)_
 
 ## Implementation Decisions
 
@@ -164,7 +165,7 @@
 - **主 seam(最高):编译后的 Orchestration 图。** 用 `graph.astream(input_state, config={"configurable":{"deps": FakeDeps}})` 驱动,断言事件序列与最终 `State`。每个 Orchestration 一个 seam,覆盖其全部外部行为。这是理想的「一个 seam」入口。
 - **次 seam:Agent 叶子子图。** 同一契约在叶子层复用,验证单个 Agent 在 `FakeDeps` 下的输入→输出 `State`。
 - 需专门覆盖的行为点:`math_animator` retry 环(注入一次 render 失败→断言触发 repair 并最终成功/收尾)、`deep_research` 的 reducer 合并(并发 worker 追加→断言队列合并正确)、HITL(`interrupt`→`Command(resume)`→断言从断点续跑且状态保留)、`ReActOrchestration` 的终止判定与工具并行。
-- **黄金样例 seam(跨切):** 在同一 Orchestration 主 seam 上,录旧实现的固定输入→输出/中间产物,重写后对齐(ADR-0013)。
+- **黄金样例 seam(跨切):** ~~在同一 Orchestration 主 seam 上,录旧实现的固定输入→输出/中间产物,重写后对齐(ADR-0013)。~~ **(已推翻,见文末「交付切分」§关于黄金样例:本次为重架构而非保真复制,黄金样例会把故意的改动/修复反向焊死成回归,故砍掉,验收统一走 `FakeDeps` 行为测试。)**
 
 ### 先例(codebase 既有同类测试)
 
@@ -184,8 +185,106 @@
 
 ## Further Notes
 
-- **执行顺序是硬约束**(ADR-0013):**录黄金样例 → 建新分支 → 按 ADR-0012 删旧码 → 从 `math_animator` 起,按 `math_animator → ReActOrchestration 模板 → deep_research` 重建,每套对齐黄金样例。** 黄金样例必须在旧代码仍可运行时录制,否则硬分叉后失去参照系。
+- **执行顺序是硬约束**(ADR-0013):**建新分支 → 按 ADR-0012 删旧码 → 从 `math_animator` 起,按 `math_animator → ReActOrchestration 模板 → deep_research` 重建。** _(原顺序含「先录黄金样例」一环,已随黄金样例一并砍去,见文末「交付切分」;各套的行为回归改由 `FakeDeps` 行为验收承担。)_
 - **RAG 明确保留**:用户点名其设计好,随智能体一起迁移,通过工具面被 Orchestration 调用。
 - **`AgentDeps` 是包间/层间接口的稳定点**:一旦作为契约冻结应克制演进,这种「被迫想清楚」是工业级基座应付的税。
 - **三原型 + 统一 Agent 契约**即本项目「基础模板体系」的最终形态;「以此派生更多智能体」= 复制一个 Agent 叶子 / 实例化一个 Orchestration 原型。
 - 本 PRD 的所有决定均可追溯至 `docs/adr/0001`–`0013` 与 `CONTEXT.md`;实现中如需推翻某决定,应先更新对应 ADR。
+
+## 交付切分:Issue 划分
+
+> 本节是上文 PRD 的任务划分,已定稿(原独立文件 `0001-issues-breakdown.md`,现并入本 PRD)。
+> Issue tracker:GitHub Issues(`Karlzzb/ResEduPod`);发布时使用的 triage label:`ready-for-agent`。
+
+### 划分原则
+
+采用**垂直切片(tracer bullets)**:每一片穿透全部集成层(Agent 契约 / AgentDeps 注入 / State / 原生流式 / checkpointer),而非某一层的水平切片。
+每片完成后可**独立 demo 或验证**——单独「删代码」或单独「搭 trivial 玩具 Agent」都不满足,因此不单列为切片。
+
+硬约束执行顺序(去掉黄金样例环):
+
+> 建新分支删旧码 → math_animator → ReActOrchestration 模板 → deep_research。
+
+#### 关于黄金样例:已砍(推翻 PRD US 43 / ADR-0013)
+
+黄金样例的唯一价值是「把旧行为当 oracle」,但本次是**重架构而非保真复制**:HITL 从「进程退出重构造」改为 `interrupt/resume`、`CitationManager` 的 O(N²) 与 Lock 是**故意修的 bug**——把旧输出冻结成基线会把这些故意的改动/修复反向焊死成回归。
+需要保真的地方(如 math_animator retry 环),用 `FakeDeps` 驱动的**行为验收标准**(注入一次 render 失败 → 断言触发 repair → 断言最终成功/收尾)比录旧输出更强:它规格化**意图**、不依赖旧码还能跑、不把旧实现的偶然细节当契约。
+这正是 PRD「Testing Decisions」定的主 seam。砍掉后唯一失去「自动兜住旧代码未知行为」这层网,由维护者对代码的熟悉补上。
+
+> 每个切片的验收 = `FakeDeps` 驱动、断言事件序列 + 最终 State 的行为测试;**不录黄金样例**。US 43 dropped,应同步更新 ADR-0013。
+
+### 不入 issue 的 User Story
+
+- **US 1-5**:已由现有 `CONTEXT.md` glossary 与 `docs/adr/0001–0013` 交付。
+- **US 13, 14, 15**:由各原型的重建过程直接体现,不单列。
+- **US 16 / 41 / 42**:Out of Scope 或与本次抽取正交。
+- **US 43**:已砍,改由各切片的 `FakeDeps` 行为验收替代。
+
+### 切片清单(共 7 片)
+
+#### 1. 硬分叉 + 地基 + math_animator + visualize 端到端
+
+- **Blocked by**:无(可立即开始)
+- **覆盖 US**:36, 37, 38, 39, 40(硬分叉)/ 6, 7, 8, 9, 10, 11(地基)/ 17, 18, 19, 20, 44(math_animator + visualize)
+- **为何合并**:只删非智能体层、或只搭一个 trivial Agent,都无法独立验证——trivial Agent 跑通不代表没删掉真实能力依赖的保留服务(rag / sandbox 等)。只有在新地基上重建出 `math_animator` 并通过行为验收,才能证明删除未破坏根本。
+- **说明**:
+  - **硬分叉**:新分支上按 ADR-0012 keep/delete ledger 永久删除非智能体产品/交付层(`api/routers`、`multi_user`+`services/auth`、`partners`、`web`/`deeptutor_web`/`deeptutor_cli`、`book`/`co_writer`/`knowledge`、`learning`+`mastery_path`、产品文档);保留 `core/agentic`、`core/context`、`core/stream*`、`core/trace`、`services/{llm,rag,prompt,config,sandbox}`、`services/{session,memory}`、`tools/`(核心)、`subagent`、`runtime/registry`;`runtime/orchestrator` 重写为瘦运行时;偏产品化工具(cron/github/notebook)降级为可选包。删完不依赖任何 `deeptutor.*`。
+  - **地基**:落地 `BaseState`(仅 `messages`/`usage`/`trace_meta`/`language`)、`AgentDeps` 契约、Agent 叶子统一契约(编译为最小子图)、LangGraph 原生流式、瘦 `astream_events → StreamBus` bridge、InMemory checkpointer;Agent 内部绝不 import 全局单例,自带默认 prompt,可传入最小 `AgentDeps` 无外部服务 `graph.invoke()`。
+  - **math_animator + visualize**:五段流水线映射为线性图;`render → 报错 → codegen(repair) → 再 render` 映射为可见条件环,`max_retries=4` 平移为 gate;每次 render 是 checkpoint 边界,崩溃后从上次 checkpoint 续跑。`visualize` 复用同一线性原型与 retry 环,含 manim 分支复用。
+  - **验收**:`FakeDeps` 驱动主 seam,断言事件序列 + 最终 State;retry 环专项——注入一次 render 失败 → 断言触发 repair → 断言最终成功/收尾;checkpointer 续跑专项——render 崩溃后从上次 checkpoint 恢复且状态保留。
+
+#### 2. `ReActOrchestration` 模板 + question 实例化
+
+- **Blocked by**:#1
+- **覆盖 US**:12, 24
+- **说明**:循环类原型模板,LLM node ⇄ tool node 双节点环;循环计数入 State 并在条件边 gate,或设 `recursion_limit`;工具并行(`MAX_PARALLEL_TOOL_CALLS=8`)收进 tool node 一处。
+  `question` 归入循环类原型(而非流水线类),作为模板的首个实例化范例落地。
+  验收:终止判定与工具并行专项断言;`question` 走通模板主 seam。
+
+#### 3. chat 循环健壮性逐条落地到模板
+
+- **Blocked by**:#2
+- **覆盖 US**:25
+- **说明**:多级 provider 降级、上下文窗口保护、强制收尾、思考标签过滤逐条落地,保证默认流量可靠性不回归。
+  验收:`FakeDeps` 脚本化各降级/截断场景,断言事件序列与最终 State。
+
+#### 4. deep_research:递归 supervisor + `Send` fan-out + reducer 合并
+
+- **Blocked by**:#2
+- **覆盖 US**:21, 22, 23
+- **说明**:supervisor 每轮重算 pending → `Send(批, ≤max_parallel_topics)` → aggregate → 条件边(仍有 pending 回 supervisor,否则去 report)。
+  为 `queue`(`DynamicTopicQueue`)与 `citations`(`CitationManager`)编写 LangGraph reducer,worker 经 `APPEND` 追加的子课题合并进共享 State;保留 `safety_cap`。
+  复核 `CitationManager` 的 `asyncio.Lock` 在 LangGraph 执行模型下的正确性,修掉 write-on-every-add 的 O(N²) 全量写盘。
+  验收:reducer 合并专项——并发 worker 追加 → 断言队列合并正确、无丢失/无重复。
+
+#### 5. HITL 统一到 `interrupt()` + `Command(resume)`
+
+- **Blocked by**:#4
+- **覆盖 US**:26, 27, 28, 29
+- **说明**:大纲确认从「进程退出 + 带 `confirmed_outline` 重新构造」升级为 `interrupt()` + `Command(resume=confirmed_outline)` 的真正暂停恢复,保留 Phase 1-2 状态;rephrase 的 `ask_user` 澄清在 worker 子图内同样用 `interrupt()`。
+  WebSocket `_bus_registry` 输入回填改对接 `Command(resume=...)`;`interrupt` 嵌在 mapped subgraph 内时 resume 路由回正确 worker;进程重启后仍能恢复。
+  验收:`interrupt → Command(resume) →` 断言从断点续跑且状态保留。
+
+#### 6. 双层记忆:Checkpointer + `BaseStore`,默认零依赖后端
+
+- **Blocked by**:#4(后置于 deep_research)
+- **覆盖 US**:30, 31, 34, 35
+- **说明**:短期线程态 → Checkpointer,长期跨线程记忆 → `BaseStore`,职责清晰分离。
+  `services/memory` 重写为 `BaseStore` 实现;默认 InMemory/SQLite;语义记忆的 embedding provider 并入 `AgentDeps`;PocketBase 降为可选后端,非默认非唯一。
+
+#### 7. 生产持久化后端:Postgres(pgvector)Store + PostgresSaver 可切换
+
+- **Blocked by**:#6
+- **覆盖 US**:32, 33
+- **说明**:生产环境记忆后端换成 `PostgresStore`(pgvector);checkpointer 后端可从 InMemory/SQLite 换到 `PostgresSaver`。
+  接口与默认后端在范围内,生产部署编排本身不在范围。
+
+### 依赖关系图
+
+```
+#1 硬分叉 + 地基 + math_animator + visualize
+ └─> #2 ReAct 模板 + question
+      ├─> #3 chat 健壮性
+      └─> #4 deep_research ──┬─> #5 HITL
+                             └─> #6 双层记忆 ──> #7 Postgres 后端
+```
