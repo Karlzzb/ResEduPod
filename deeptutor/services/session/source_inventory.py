@@ -591,22 +591,10 @@ def _extract_book_title(section: str, *, fallback: str) -> str:
 def _resolve_book_section(book_reference: dict[str, Any]) -> tuple[str, str]:
     """Resolve a single book reference into its serialized section + title.
 
-    Used by the historical-collection path where each past turn's book
-    reference is rendered independently (so the per-book ``bk-{book_id}``
-    source id stays stable). Returns ``("", "")`` on failure.
+    The book layer was removed with the product tier, so book references can no
+    longer be resolved; always returns ``("", "")``.
     """
-    from deeptutor.book.context import build_book_context
-
-    try:
-        result = build_book_context([book_reference])
-    except Exception:
-        logger.debug("Failed to resolve historical book reference", exc_info=True)
-        return "", ""
-    text = (result.text or "").strip()
-    if not text:
-        return "", ""
-    name = _extract_book_title(text, fallback=f"Book {book_reference.get('book_id', '?')}")
-    return text, name
+    return "", ""
 
 
 # Human labels for the external agents a session can be imported from. The
