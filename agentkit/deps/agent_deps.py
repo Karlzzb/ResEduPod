@@ -33,6 +33,10 @@ class AgentParams:
     temperature: float = 0.7
     max_tokens: int = 4096
     model: str | None = None
+    # Effective context window for the model, in tokens.  ``None`` lets the loop
+    # infer a bound from the model name / ``max_tokens`` (context-window guard,
+    # issue #3).
+    context_window: int | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +49,10 @@ class AgentDeps:
     renderer: Renderer | None = None
     store: Any | None = None  # langgraph BaseStore | None (long-term memory; ADR-0011)
     embed: EmbeddingProvider | None = None
+    # Ordered secondary LLM clients tried, in sequence, when ``llm`` fails before
+    # producing any output (multi-level provider degradation, issue #3).  Empty by
+    # default so single-provider deps are unaffected.
+    llm_fallbacks: tuple[LLMClient, ...] = ()
 
 
 def get_deps(config: dict[str, Any] | None) -> AgentDeps:

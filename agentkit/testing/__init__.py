@@ -13,6 +13,14 @@ from agentkit.testing.fake_deps import (
     make_fake_deps,
     summary_json,
 )
+from agentkit.testing.fake_tools import (
+    make_fake_tool,
+    question_plan_json,
+    quiz_pair_json,
+    react_final,
+    react_tool_decision,
+    tool_call,
+)
 
 __all__ = [
     "FakeLLM",
@@ -23,5 +31,11 @@ __all__ = [
     "code_json",
     "design_json",
     "make_fake_deps",
+    "make_fake_tool",
+    "question_plan_json",
+    "quiz_pair_json",
+    "react_final",
+    "react_tool_decision",
     "summary_json",
+    "tool_call",
 ]

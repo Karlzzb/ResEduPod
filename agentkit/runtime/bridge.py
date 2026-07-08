@@ -21,6 +21,7 @@ _EVENT_MAP = {
     "stage_start": StreamEventType.STAGE_START,
     "stage_end": StreamEventType.STAGE_END,
     "llm_chunk": StreamEventType.THINKING,
+    "thinking": StreamEventType.THINKING,  # split-off <think> scratchpad (issue #3)
     "content": StreamEventType.CONTENT,
     "progress": StreamEventType.PROGRESS,
     "result": StreamEventType.RESULT,
@@ -63,7 +64,9 @@ async def run_to_stream_bus(
                 for node_name, delta in chunk.items():
                     if isinstance(delta, dict):
                         final_state.update(delta)
-                    await bus.progress("", source=source, stage=str(node_name), metadata={"node": node_name})
+                    await bus.progress(
+                        "", source=source, stage=str(node_name), metadata={"node": node_name}
+                    )
     finally:
         await bus.close()
     return final_state

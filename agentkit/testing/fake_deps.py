@@ -26,13 +26,21 @@ class FakeLLM:
     Each call to :meth:`stream` / :meth:`complete` pops the next scripted response
     for that agent and records the call in :attr:`calls` (call order is asserted in
     tests).  A response is chunked so ``llm_chunk`` events are emitted.
+
+    A scripted response may be a ``str`` (normal), or an ``Exception`` instance to
+    script a **pre-first-chunk provider failure** (issue #3 fallback / salvage): the
+    call is recorded, then the exception is raised before any chunk is yielded, so a
+    downstream fallback provider is tried instead of the partial output.
     """
 
-    scripts: dict[str, list[str]]
+    scripts: dict[str, list[Any]]
     calls: list[str] = field(default_factory=list)
+    # The messages passed to each call, in order — lets a test assert the context
+    # actually sent to the provider was bounded by the context-window guard.
+    seen_messages: list[list[dict[str, Any]]] = field(default_factory=list)
     _cursor: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
-    def _next(self, agent: str | None) -> str:
+    def _next(self, agent: str | None) -> Any:
         key = agent or "?"
         self.calls.append(key)
         bucket = self.scripts.get(key)
@@ -54,7 +62,11 @@ class FakeLLM:
         model: str | None = None,
         agent: str | None = None,
     ) -> str:
-        return self._next(agent)
+        self.seen_messages.append(list(messages))
+        response = self._next(agent)
+        if isinstance(response, BaseException):
+            raise response
+        return response
 
     async def stream(
         self,
@@ -66,11 +78,14 @@ class FakeLLM:
         model: str | None = None,
         agent: str | None = None,
     ) -> AsyncIterator[str]:
-        text = self._next(agent)
+        self.seen_messages.append(list(messages))
+        response = self._next(agent)
+        if isinstance(response, BaseException):
+            raise response  # scripted provider failure before any output
         # Chunk into a few pieces so streaming (and llm_chunk events) is exercised.
-        size = max(1, len(text) // 3 or 1)
-        for i in range(0, len(text), size):
-            yield text[i : i + size]
+        size = max(1, len(response) // 3 or 1)
+        for i in range(0, len(response), size):
+            yield response[i : i + size]
 
 
 class InlinePromptProvider:
@@ -85,9 +100,15 @@ class StaticAgentConfig:
     temperature: float = 0.0
     max_tokens: int = 1024
     model: str | None = "fake-model"
+    context_window: int | None = None
 
     def params(self, *, agent: str) -> AgentParams:
-        return AgentParams(temperature=self.temperature, max_tokens=self.max_tokens, model=self.model)
+        return AgentParams(
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            model=self.model,
+            context_window=self.context_window,
+        )
 
 
 @dataclass
@@ -111,7 +132,9 @@ class FakeRenderer:
     def supports_vision(self) -> bool:
         return self.supports_vision_flag
 
-    async def render(self, *, code: str, output_mode: str, quality: str, turn_id: str) -> RenderResult:
+    async def render(
+        self, *, code: str, output_mode: str, quality: str, turn_id: str
+    ) -> RenderResult:
         self.calls += 1
         if self.calls <= self.crash_times:
             raise RuntimeError(f"renderer subprocess killed (crash {self.calls})")
@@ -126,7 +149,7 @@ class FakeRenderer:
             artifacts=[
                 RenderedArtifact(
                     type=artifact_type,
-                    url=f"file:///fake/{turn_id}.{ 'png' if output_mode == 'image' else 'mp4' }",
+                    url=f"file:///fake/{turn_id}.{'png' if output_mode == 'image' else 'mp4'}",
                     filename=f"{turn_id}.{'png' if output_mode == 'image' else 'mp4'}",
                     content_type=content_type,
                     label="Fake artifact",
@@ -184,20 +207,30 @@ def summary_json() -> str:
 
 def make_fake_deps(
     *,
-    llm_scripts: dict[str, list[str]] | None = None,
+    llm_scripts: dict[str, list[Any]] | None = None,
+    fallback_scripts: list[dict[str, list[Any]]] | None = None,
+    context_window: int | None = None,
     render_fail_times: int = 0,
     crash_times: int = 0,
     latex_missing: bool = False,
 ) -> AgentDeps:
-    """Build an :class:`AgentDeps` wired with scripted fakes."""
+    """Build an :class:`AgentDeps` wired with scripted fakes.
+
+    ``fallback_scripts`` supplies ordered secondary :class:`FakeLLM` scripts for the
+    multi-level provider degradation path (issue #3); each entry becomes one
+    ``deps.llm_fallbacks`` client.  ``context_window`` sets the model's effective
+    window so the context-window guard can be exercised deterministically.
+    """
     renderer = FakeRenderer(
         render_fail_times=render_fail_times, crash_times=crash_times, latex_missing=latex_missing
     )
+    fallbacks = tuple(FakeLLM(scripts=scripts) for scripts in (fallback_scripts or []))
     return AgentDeps(
         llm=FakeLLM(scripts=llm_scripts or {}),
         prompts=InlinePromptProvider(),
-        config=StaticAgentConfig(),
+        config=StaticAgentConfig(context_window=context_window),
         renderer=renderer,
+        llm_fallbacks=fallbacks,
     )
 
 

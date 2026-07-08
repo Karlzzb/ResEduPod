@@ -7,21 +7,28 @@ imports **nothing** from ``deeptutor.*`` and every leaf Agent depends only on an
 injected :class:`~agentkit.deps.AgentDeps` bundle (ADR-0003), never on a global
 singleton.
 
-This first tracer bullet (issue #1) ships the foundation plus the
-``math_animator`` and ``visualize`` orchestrations.
+The tracer bullets landed so far: the foundation plus ``math_animator`` /
+``visualize`` (issue #1), the ``ReActOrchestration`` loop template with its
+``question`` instance (issue #2), and the ``chat``-loop robustness behaviours —
+multi-level provider degradation, context-window protection, forced 收尾, and
+thinking-tag filtering — carried onto that template (issue #3).
 """
 
 from __future__ import annotations
 
 from agentkit.deps import AgentConfig, AgentDeps, AgentParams, LLMClient, PromptProvider, Renderer
 from agentkit.orchestrations.math_animator import build_math_animator_graph
+from agentkit.orchestrations.question import build_question_graph
+from agentkit.orchestrations.react import build_react_orchestration_graph
 from agentkit.orchestrations.visualize import build_visualize_graph
 from agentkit.runtime.bridge import run_to_stream_bus
 from agentkit.runtime.checkpointer import make_checkpointer
 from agentkit.runtime.stream import StreamEvent, StreamEventType
 from agentkit.runtime.stream_bus import StreamBus
+from agentkit.tools import MAX_PARALLEL_TOOL_CALLS, Tool
 
 __all__ = [
+    "MAX_PARALLEL_TOOL_CALLS",
     "AgentConfig",
     "AgentDeps",
     "AgentParams",
@@ -31,7 +38,10 @@ __all__ = [
     "StreamBus",
     "StreamEvent",
     "StreamEventType",
+    "Tool",
     "build_math_animator_graph",
+    "build_question_graph",
+    "build_react_orchestration_graph",
     "build_visualize_graph",
     "make_checkpointer",
     "run_to_stream_bus",

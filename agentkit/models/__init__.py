@@ -12,11 +12,15 @@ from agentkit.models.math_animator import (
     SummaryPayload,
     VisualReviewResult,
 )
+from agentkit.models.question import QuizPair, QuizPlan, QuizTemplate
 from agentkit.models.visualize import RenderType, ReviewResult, VisualizationAnalysis
 
 __all__ = [
     "ConceptAnalysis",
     "GeneratedCode",
+    "QuizPair",
+    "QuizPlan",
+    "QuizTemplate",
     "RenderResult",
     "RenderType",
     "RenderedArtifact",
