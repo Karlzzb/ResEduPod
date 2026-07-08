@@ -205,6 +205,35 @@ def summary_json() -> str:
     )
 
 
+# --- canned payloads for the deep_research scripted agents ---
+
+
+def research_worker_json(
+    knowledge: str,
+    *,
+    citations: list[dict[str, str]] | None = None,
+    append: list[dict[str, str]] | None = None,
+) -> str:
+    """A scripted ``research_worker`` output: findings + citations + appended sub-topics.
+
+    ``citations`` items are ``{"source","title","snippet"}``; ``append`` items are
+    ``{"title","overview"}`` — the freshly discovered sub-topics the reducer folds
+    into the shared work list for the next supervisor round.
+    """
+    return json.dumps(
+        {
+            "knowledge": knowledge,
+            "citations": citations or [],
+            "append": append or [],
+        }
+    )
+
+
+def research_report(text: str = "# Research Report\n\nSynthesized findings.") -> str:
+    """A scripted ``research_report`` free-text output (the report writer is text, not JSON)."""
+    return text
+
+
 def make_fake_deps(
     *,
     llm_scripts: dict[str, list[Any]] | None = None,
@@ -243,5 +272,7 @@ __all__ = [
     "code_json",
     "design_json",
     "make_fake_deps",
+    "research_report",
+    "research_worker_json",
     "summary_json",
 ]

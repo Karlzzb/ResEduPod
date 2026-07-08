@@ -49,21 +49,32 @@ async def run_to_stream_bus(
 ) -> dict[str, Any]:
     """Drive ``graph`` and bridge its native stream onto ``bus``.
 
-    Returns the accumulated final State (merged node deltas).  Closes ``bus`` when
-    the run finishes (including on error, so consumers always terminate).
+    Returns the fully-reduced final State.  Closes ``bus`` when the run finishes
+    (including on error, so consumers always terminate).
+
+    The final State is taken from the ``values`` stream — LangGraph's post-superstep
+    snapshot of the *reduced* channels — rather than folded from ``updates`` deltas.
+    That distinction matters for reducer channels accumulated across supersteps
+    (e.g. a ``Send`` fan-out where each worker returns a partial ``blocks`` list, or
+    ``math_animator``'s ``retry_history``): ``update``-ing raw deltas would overwrite
+    the reduced value with whichever node reported last, whereas ``values`` already
+    reflects every reducer.  ``updates`` is still consumed to emit a per-node
+    progress event.
     """
     final_state: dict[str, Any] = {}
     try:
         async for mode, chunk in graph.astream(
-            input_state, config=config, stream_mode=["custom", "updates"]
+            input_state, config=config, stream_mode=["custom", "updates", "values"]
         ):
             if mode == "custom":
                 await bus.emit(_writer_event_to_stream_event(chunk, source=source))
+            elif mode == "values":
+                # The full reduced State after this superstep; the last one wins.
+                if isinstance(chunk, dict):
+                    final_state = chunk
             elif mode == "updates":
-                # chunk == {node_name: partial_state_delta}
-                for node_name, delta in chunk.items():
-                    if isinstance(delta, dict):
-                        final_state.update(delta)
+                # chunk == {node_name: partial_state_delta}; used only for progress.
+                for node_name, _delta in chunk.items():
                     await bus.progress(
                         "", source=source, stage=str(node_name), metadata={"node": node_name}
                     )

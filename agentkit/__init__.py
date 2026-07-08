@@ -9,14 +9,17 @@ singleton.
 
 The tracer bullets landed so far: the foundation plus ``math_animator`` /
 ``visualize`` (issue #1), the ``ReActOrchestration`` loop template with its
-``question`` instance (issue #2), and the ``chat``-loop robustness behaviours —
+``question`` instance (issue #2), the ``chat``-loop robustness behaviours —
 multi-level provider degradation, context-window protection, forced 收尾, and
-thinking-tag filtering — carried onto that template (issue #3).
+thinking-tag filtering — carried onto that template (issue #3), and the
+dynamic-parallel ``deep_research`` archetype — recursive supervisor + ``Send``
+fan-out + reducer-merged dynamic queue (issue #4).
 """
 
 from __future__ import annotations
 
 from agentkit.deps import AgentConfig, AgentDeps, AgentParams, LLMClient, PromptProvider, Renderer
+from agentkit.orchestrations.deep_research import build_deep_research_graph
 from agentkit.orchestrations.math_animator import build_math_animator_graph
 from agentkit.orchestrations.question import build_question_graph
 from agentkit.orchestrations.react import build_react_orchestration_graph
@@ -39,6 +42,7 @@ __all__ = [
     "StreamEvent",
     "StreamEventType",
     "Tool",
+    "build_deep_research_graph",
     "build_math_animator_graph",
     "build_question_graph",
     "build_react_orchestration_graph",

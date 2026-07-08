@@ -11,6 +11,8 @@ from agentkit.testing.fake_deps import (
     code_json,
     design_json,
     make_fake_deps,
+    research_report,
+    research_worker_json,
     summary_json,
 )
 from agentkit.testing.fake_tools import (
@@ -36,6 +38,8 @@ __all__ = [
     "quiz_pair_json",
     "react_final",
     "react_tool_decision",
+    "research_report",
+    "research_worker_json",
     "summary_json",
     "tool_call",
 ]

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from agentkit.orchestrations.deep_research import build_deep_research_graph
 from agentkit.orchestrations.math_animator import build_math_animator_graph
 from agentkit.orchestrations.question import build_question_graph
 from agentkit.orchestrations.react import build_react_orchestration_graph
 from agentkit.orchestrations.visualize import build_visualize_graph
 
 __all__ = [
+    "build_deep_research_graph",
     "build_math_animator_graph",
     "build_question_graph",
     "build_react_orchestration_graph",
